@@ -1,8 +1,8 @@
 # Scanner4Zeffy
 
-# WIP
+(WIP)
 
 An Android app which automatically opens whatever QR code it sees on the same screen.
-This is ideally allow for quick scanning of multiple QR codes in a row.
+This will ideally allow for quick scanning of multiple QR codes in a row.
 
 Be careful what you point this at.
