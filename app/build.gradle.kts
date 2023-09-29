@@ -5,12 +5,13 @@ plugins {
 
 android {
     namespace = "com.example.scanner4zeffy"
-    compileSdk = 33
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.scanner4zeffy"
         minSdk = 21
-        targetSdk = 33
+        //noinspection ExpiredTargetSdkVersion
+        targetSdk = 28 // not targeting google play
         versionCode = 1
         versionName = "1.0"
 
@@ -77,7 +78,7 @@ dependencies {
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.0")
     androidTestImplementation("androidx.compose.ui:ui:1.5.2")
     debugImplementation("androidx.compose.ui:ui-test:1.5.2")
 }
