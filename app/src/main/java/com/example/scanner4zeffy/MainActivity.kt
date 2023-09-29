@@ -113,8 +113,12 @@ class MainActivity : AppCompatActivity() {
 }
 class QRCodeAnalyzer(private val onQRCodeDetected: (String) -> Unit) : ImageAnalysis.Analyzer {
     private val reader = MultiFormatReader()
-
+    companion object {
+        private const val TAG = "QRCodeAnalyzer"
+    }
     override fun analyze(image: ImageProxy) {
+        Log.d(TAG, "Analyzing frame...")
+
         val yBuffer = image.planes[0].buffer
         val ySize = yBuffer.remaining()
         val yArray = ByteArray(ySize)
@@ -135,7 +139,9 @@ class QRCodeAnalyzer(private val onQRCodeDetected: (String) -> Unit) : ImageAnal
         try {
             val result = reader.decode(binaryBitmap)
             onQRCodeDetected(result.text)
+            Log.d(TAG, "QR code detected: ${result.text}")
         } catch (e: NotFoundException) {
+            Log.e(TAG, "QR code not found", e)
             // No QR code found
         } finally {
             image.close()
