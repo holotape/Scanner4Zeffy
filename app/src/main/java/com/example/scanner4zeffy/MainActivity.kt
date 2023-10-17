@@ -2,10 +2,13 @@ package com.example.scanner4zeffy
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.util.Log
+import android.view.WindowManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
@@ -23,7 +26,6 @@ import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import android.view.WindowManager
 
 class MainActivity : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
@@ -33,6 +35,16 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "MainActivity"
     }
 
+    private fun playSound(resourceId: Int) {
+        val mediaPlayer = MediaPlayer.create(this, resourceId)
+        mediaPlayer.setOnCompletionListener {
+            it.release()
+            Log.d(TAG, "Media player released.")
+    }
+        mediaPlayer.start()  // This will start the media player immediately after creation
+        Log.d(TAG, "Attempting to play sound.")
+}
+
     override fun onCreate(savedInstanceState: Bundle?) {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         super.onCreate(savedInstanceState)
@@ -41,11 +53,26 @@ class MainActivity : AppCompatActivity() {
         cameraExecutor = Executors.newSingleThreadExecutor()
 
         val webView: WebView = findViewById(R.id.web_view)
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+
+                webView.evaluateJavascript("document.body.innerText") { result ->
+                    // check for specific text in the html
+                    if (result.contains("Already Validated")) {
+                        playSound(R.raw.chip_negative)
+                    }
+                }
+            }
+        }
         webView.settings.javaScriptEnabled = true
         val previewView: PreviewView = findViewById(R.id.preview_view)
         startCamera(previewView)
 
+        val playSoundButton: Button = findViewById(R.id.play_sound_button)
+        playSoundButton.setOnClickListener {
+            playSound(R.raw.chip_positive)
+        }
     }
 
     private fun startCamera(previewView: PreviewView) {
@@ -65,12 +92,14 @@ class MainActivity : AppCompatActivity() {
             .setImageQueueDepth(3) // Number of frames of images in the queue
             .build()
             .also {
-                it.setAnalyzer(ContextCompat.getMainExecutor(this), QRCodeAnalyzer { url ->
+                it.setAnalyzer(ContextCompat.getMainExecutor(this), QRCodeAnalyzer(
+                    onQRCodeDetected = { url ->
                     val webView: WebView = findViewById(R.id.web_view)
                     webView.loadUrl(url)
-                })
+                },
+                playSound = ::playSound
+            ))
             }
-
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
@@ -115,12 +144,19 @@ class MainActivity : AppCompatActivity() {
         cameraExecutor.shutdown()
     }
 }
-class QRCodeAnalyzer(private val onQRCodeDetected: (String) -> Unit) : ImageAnalysis.Analyzer {
+class QRCodeAnalyzer(private val onQRCodeDetected: (String) -> Unit, private val playSound: (Int) -> Unit) : ImageAnalysis.Analyzer {
     private val reader = MultiFormatReader()
+    private var lastScanTime = 0L
     companion object {
         private const val TAG = "QRCodeAnalyzer"
     }
     override fun analyze(image: ImageProxy) {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastScanTime < 1500) { //
+            // Skip this frame
+            return
+        }
+
         Log.d(TAG, "Analyzing frame...")
 
         val yBuffer = image.planes[0].buffer
@@ -143,6 +179,8 @@ class QRCodeAnalyzer(private val onQRCodeDetected: (String) -> Unit) : ImageAnal
         try {
             val result = reader.decode(binaryBitmap)
             onQRCodeDetected(result.text)
+            playSound(R.raw.chip_mouseover2)
+            lastScanTime = currentTime
             Log.d(TAG, "QR code detected: ${result.text}")
         } catch (e: NotFoundException) {
             Log.e(TAG, "QR code not found", e)
