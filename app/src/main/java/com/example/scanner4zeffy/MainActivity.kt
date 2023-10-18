@@ -8,7 +8,7 @@ import android.util.Log
 import android.view.WindowManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Button
+// import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
@@ -69,10 +69,10 @@ class MainActivity : AppCompatActivity() {
         val previewView: PreviewView = findViewById(R.id.preview_view)
         startCamera(previewView)
 
-        val playSoundButton: Button = findViewById(R.id.play_sound_button)
+        /*val playSoundButton: Button = findViewById(R.id.play_sound_button)
         playSoundButton.setOnClickListener {
             playSound(R.raw.chip_positive)
-        }
+        }*/
     }
 
     private fun startCamera(previewView: PreviewView) {
@@ -92,14 +92,18 @@ class MainActivity : AppCompatActivity() {
             .setImageQueueDepth(3) // Number of frames of images in the queue
             .build()
             .also {
-                it.setAnalyzer(ContextCompat.getMainExecutor(this), QRCodeAnalyzer(
-                    onQRCodeDetected = { url ->
-                    val webView: WebView = findViewById(R.id.web_view)
-                    webView.loadUrl(url)
-                },
-                playSound = ::playSound
-            ))
-            }
+                it.setAnalyzer(
+                    ContextCompat.getMainExecutor(this),
+                    QRCodeAnalyzer(
+                        onQRCodeDetected = { url ->
+                        val webView: WebView = findViewById(R.id.web_view)
+                        webView.loadUrl(url)
+                    },
+                    playSound = ::playSound,
+                    imageAnalysis = it // Pass the ImageAnalysis instance
+                )
+            )
+        }
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
@@ -144,16 +148,24 @@ class MainActivity : AppCompatActivity() {
         cameraExecutor.shutdown()
     }
 }
-class QRCodeAnalyzer(private val onQRCodeDetected: (String) -> Unit, private val playSound: (Int) -> Unit) : ImageAnalysis.Analyzer {
+class QRCodeAnalyzer(private val onQRCodeDetected: (String) -> Unit, private val playSound: (Int) -> Unit, private val imageAnalysis: ImageAnalysis) : ImageAnalysis.Analyzer {
+    private var isCooldown = false
+    private var frameCounter = 0
     private val reader = MultiFormatReader()
-    private var lastScanTime = 0L
+    }
+
     companion object {
         private const val TAG = "QRCodeAnalyzer"
-    }
+}
     override fun analyze(image: ImageProxy) {
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastScanTime < 1500) { //
-            // Skip this frame
+        if (isCooldown) {
+            frameCounter++
+            if (frameCounter >= 30) {  // reset after skipping 30 frames
+                isCooldown = false
+                frameCounter = 0
+                imageAnalysis.setTargetImageQueueDepth(3)  // set back to normal value
+            }
+            image.close()
             return
         }
 
@@ -178,10 +190,14 @@ class QRCodeAnalyzer(private val onQRCodeDetected: (String) -> Unit, private val
 
         try {
             val result = reader.decode(binaryBitmap)
-            onQRCodeDetected(result.text)
-            playSound(R.raw.chip_mouseover2)
-            lastScanTime = currentTime
-            Log.d(TAG, "QR code detected: ${result.text}")
+            if (result != null) {
+                onQRCodeDetected(result.text)
+                playSound(R.raw.chip_mouseover2)
+                //  lastScanTime = currentTime
+                Log.d(TAG, "QR code detected: ${result.text}")  // debug
+            }
+            isCooldown = true
+            imageAnalysis.setTargetImageQueueDepth(30)  // set to higher value during cool-down
         } catch (e: NotFoundException) {
             Log.e(TAG, "QR code not found", e)
             // No QR code found
