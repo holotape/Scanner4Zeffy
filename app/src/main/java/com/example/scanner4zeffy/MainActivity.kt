@@ -24,12 +24,14 @@ import com.google.zxing.MultiFormatReader
 import com.google.zxing.NotFoundException
 import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.HybridBinarizer
+import com.google.common.util.concurrent.ListenableFuture
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
-
+    private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
+    private lateinit var preview: Preview
     companion object {
         private const val MY_PERMISSIONS_REQUEST_CAMERA = 1
         private const val TAG = "MainActivity"
@@ -86,7 +88,9 @@ class MainActivity : AppCompatActivity() {
                 MY_PERMISSIONS_REQUEST_CAMERA)
             return
         }
-
+        preview = Preview.Builder().build().also {
+            it.setSurfaceProvider(previewView.surfaceProvider)
+        }
         val imageAnalysis = ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .setImageQueueDepth(3) // Number of frames of images in the queue
@@ -100,11 +104,12 @@ class MainActivity : AppCompatActivity() {
                         webView.loadUrl(url)
                     },
                     playSound = ::playSound,
-                    imageAnalysis = it // Pass the ImageAnalysis instance
+                        rebuildQueue = ::rebuildImageAnalysisQueueDepth // Pass the function to rebuild the queue
+                    // imageAnalysis = it // Pass the ImageAnalysis instance
                 )
             )
         }
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+        cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
@@ -147,23 +152,64 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         cameraExecutor.shutdown()
     }
+
+    fun rebuildImageAnalysisQueueDepth(newDepth: Int) {
+        val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
+        cameraProvider.unbind(imageAnalysis)
+
+        val newImageAnalysis = ImageAnalysis.Builder()
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .setImageQueueDepth(newDepth)
+            .build()
+
+        newImageAnalysis.setAnalyzer(
+            ContextCompat.getMainExecutor(this),
+            QRCodeAnalyzer(
+                onQRCodeDetected = { url ->
+                    val webView: WebView = findViewById(R.id.web_view)
+                    webView.loadUrl(url)
+                },
+                playSound = ::playSound,
+                rebuildQueue = ::rebuildImageAnalysisQueueDepth
+            )
+        )
+
+       // val preview = Preview.Builder().build().also {
+     //       val previewView: PreviewView = findViewById(R.id.preview_view)
+     //       it.setSurfaceProvider(previewView.surfaceProvider)
+     //   }
+
+        try {
+            cameraProvider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, newImageAnalysis)
+        } catch (exc: Exception) {
+            Log.e(TAG, "Use case binding failed", exc)
+        }
+    }
+
 }
-class QRCodeAnalyzer(private val onQRCodeDetected: (String) -> Unit, private val playSound: (Int) -> Unit, private val imageAnalysis: ImageAnalysis) : ImageAnalysis.Analyzer {
+class QRCodeAnalyzer(
+    private val onQRCodeDetected: (String) -> Unit,
+    private val playSound: (Int) -> Unit,
+    private val rebuildQueue: (Int) -> Unit,
+    //private val imageAnalysis: ImageAnalysis
+) : ImageAnalysis.Analyzer {
+
     private var isCooldown = false
     private var frameCounter = 0
     private val reader = MultiFormatReader()
-    }
+
 
     companion object {
         private const val TAG = "QRCodeAnalyzer"
-}
+    }
     override fun analyze(image: ImageProxy) {
         if (isCooldown) {
             frameCounter++
-            if (frameCounter >= 30) {  // reset after skipping 30 frames
+            if (frameCounter >= 60) {  // reset after skipping 60 frames
                 isCooldown = false
                 frameCounter = 0
-                imageAnalysis.setTargetImageQueueDepth(3)  // set back to normal value
+                rebuildQueue(3)
+                //imageAnalysis.setImageQueueDepth(3)  // set back to normal value
             }
             image.close()
             return
@@ -193,11 +239,13 @@ class QRCodeAnalyzer(private val onQRCodeDetected: (String) -> Unit, private val
             if (result != null) {
                 onQRCodeDetected(result.text)
                 playSound(R.raw.chip_mouseover2)
-                //  lastScanTime = currentTime
                 Log.d(TAG, "QR code detected: ${result.text}")  // debug
+                isCooldown = true
+                frameCounter = 0
+                rebuildQueue(60)  // Set to a queue depth of 30
+                //imageAnalysis.setImageQueueDepth(30)  // set to higher value during cool-down
             }
-            isCooldown = true
-            imageAnalysis.setTargetImageQueueDepth(30)  // set to higher value during cool-down
+
         } catch (e: NotFoundException) {
             Log.e(TAG, "QR code not found", e)
             // No QR code found
