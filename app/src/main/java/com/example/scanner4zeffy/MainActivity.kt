@@ -1,5 +1,6 @@
 package com.example.scanner4zeffy
 
+// import android.widget.Button
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
@@ -8,7 +9,6 @@ import android.util.Log
 import android.view.WindowManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
-// import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
@@ -19,12 +19,12 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.common.util.concurrent.ListenableFuture
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.MultiFormatReader
 import com.google.zxing.NotFoundException
 import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.HybridBinarizer
-import com.google.common.util.concurrent.ListenableFuture
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -32,6 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private lateinit var preview: Preview
+    private lateinit var imageAnalysis: ImageAnalysis
     companion object {
         private const val MY_PERMISSIONS_REQUEST_CAMERA = 1
         private const val TAG = "MainActivity"
@@ -91,7 +92,7 @@ class MainActivity : AppCompatActivity() {
         preview = Preview.Builder().build().also {
             it.setSurfaceProvider(previewView.surfaceProvider)
         }
-        val imageAnalysis = ImageAnalysis.Builder()
+        imageAnalysis = ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .setImageQueueDepth(3) // Number of frames of images in the queue
             .build()
