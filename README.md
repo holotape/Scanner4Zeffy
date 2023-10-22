@@ -53,3 +53,5 @@ Below is a laundry list of what I am working on or thinking about.
 
 ## Warning  
 This app TRUSTS the QR code it is shown.  QR codes in general can be made to contain malicious links, so I would not recommend using this outside of a situation where you know that you are looking at a most-likely trustworthy QR code.
+
+This app is not associated with Zeffy or 9355-0861 Québec Inc.
