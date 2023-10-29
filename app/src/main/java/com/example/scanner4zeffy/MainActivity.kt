@@ -10,6 +10,9 @@ import android.view.WindowManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import android.os.Vibrator
+import android.os.VibrationEffect
+import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -33,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private lateinit var preview: Preview
     private lateinit var imageAnalysis: ImageAnalysis
+    private lateinit var vibrator: Vibrator
     companion object {
         private const val MY_PERMISSIONS_REQUEST_CAMERA = 1
         private const val TAG = "MainActivity"
@@ -52,7 +56,7 @@ class MainActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
+        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         cameraExecutor = Executors.newSingleThreadExecutor()
 
         val webView: WebView = findViewById(R.id.web_view)
@@ -76,6 +80,15 @@ class MainActivity : AppCompatActivity() {
         playSoundButton.setOnClickListener {
             playSound(R.raw.chip_positive)
         }*/
+    }
+
+    private fun vibrate() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(50)
+        }
     }
 
     private fun startCamera(previewView: PreviewView) {
@@ -105,6 +118,7 @@ class MainActivity : AppCompatActivity() {
                         webView.loadUrl(url)
                     },
                     playSound = ::playSound,
+                        vibrate = ::vibrate,
                         rebuildQueue = ::rebuildImageAnalysisQueueDepth // Pass the function to rebuild the queue
                 )
             )
@@ -169,6 +183,7 @@ class MainActivity : AppCompatActivity() {
                     webView.loadUrl(url)
                 },
                 playSound = ::playSound,
+                vibrate = ::vibrate,
                 rebuildQueue = ::rebuildImageAnalysisQueueDepth
             )
         )
@@ -184,6 +199,7 @@ class MainActivity : AppCompatActivity() {
 class QRCodeAnalyzer(
     private val onQRCodeDetected: (String) -> Unit,
     private val playSound: (Int) -> Unit,
+    private val vibrate: () -> Unit,
     private val rebuildQueue: (Int) -> Unit,
 ) : ImageAnalysis.Analyzer {
 
@@ -230,6 +246,7 @@ class QRCodeAnalyzer(
             if (result != null) {
                 onQRCodeDetected(result.text)
                 playSound(R.raw.chip_mouseover2)
+                vibrate()
                 Log.d(TAG, "QR code detected: ${result.text}")  // debug
                 isCooldown = true
                 frameCounter = 0
