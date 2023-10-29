@@ -13,7 +13,7 @@ android {
         //noinspection ExpiredTargetSdkVersion
         targetSdk = 28 // not targeting google play
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
