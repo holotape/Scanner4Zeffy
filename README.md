@@ -27,7 +27,7 @@ Here's what it does:
 
 - Scans QR Codes and opens the link with no intervention needed.
 - Shows the camera preview and website result on the same screen, reducing time wasted switch to and from the browser.
-- Plays a sound when a QR code is detected, and will play a negative sound if the ticket has already been scanned.
+- Plays a sound and vibrates when a QR code is detected, and will play a negative sound if the ticket has already been scanned.
 - Scans the next QR code after a delay of a second.  This could be changed by changing the number "60", which refers to frames in:
 
 ```kotlin
@@ -43,12 +43,13 @@ Here's what it does:
 I want to further improve the responsiveness, and reduce the battery drain of the app.
 Below is a laundry list of what I am working on or thinking about.
 
-- Currently, the very first scan you do may two or three seconds more.  It speeds up after that, but I want to get to the root of this.
-- I will likely change the webView to Dark theme to reduce battery usage on phones with OLED displays.
+- Currently, the very first scan you do may two or three seconds more.  It speeds up after that.
+- The "QR code found" and vibration feedback are not in-sync.
+- I may add an option to change the webView to Dark theme to reduce battery usage on phones with OLED displays, though we found the battery usage to be pretty good.
 - I will experiment with increasing the frame skipping to reduce processing power. Currently it only scans every third frame to look for a QR code, but I will try to increase that without reducing the responsiveness.
-- I will likely reduce the resolution of the displayed camera preview to again reduce battery usage.
+- I may reduce the resolution of the displayed camera preview to again reduce battery usage.
 - I may see if I can stop the camera preview entirely for a short period after a QR code is detected.
-- I may add a "QR Code Detected" or similar message on the screen, if the sound is not able to be heard, or it drives anyone nuts.
+- Does not play the error sound if a ticket has been cancelled, but the visual feedback may be enough.
 
 
 ## Warning  
