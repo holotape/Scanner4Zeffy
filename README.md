@@ -1,3 +1,6 @@
+# This repo is no longer being maintained. 
+I've made the switch to [Honeywell scanners](https://www.amazon.ca/Honeywell-1900G-HD-Density-Barcode-Scanner/dp/B00LRAO3DC) attached to Windows laptops which are more plentiful in my organization. I have programmed them to work with MS Edge to be able to scan Zeffy QR codes in quick succession. Please message me for more info.
+
 # Scanner4Zeffy
 
 An Android app which automatically opens the URL of whatever QR code it sees, on the same screen.
